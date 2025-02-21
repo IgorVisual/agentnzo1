@@ -100,14 +100,17 @@ st.markdown(
 # Интерфейс Streamlit
 st.title("Агент NZO")
 
-# Второй блок: таблица с файла из Каталог_Чинт.xlsx с чекбоксами
-st.subheader("Поиск оборудования")
-
 # Фиксированные переменные для раздела
 categories = ["Корпус", "Отсек высоковольтного выключателя", "Отсек РЗА", "Прочее"]
 
 # Инициализация таблицы-шаблона с фиксированными категориями и подкатегорией "Оборудование"
 template_df = initialize_template_table(categories, ["Оборудование"] * len(categories))
+
+# Переменная для сохранения выбранных товаров
+selected_items = {category: [] for category in categories}
+
+# Второй блок: таблица с файла из Каталог_Чинт.xlsx с чекбоксами
+st.subheader("Поиск оборудования")
 
 # Добавление поля для поиска и фильтров на одной строке
 with st.container():
@@ -119,51 +122,44 @@ with st.container():
     with col3:
         selected_subheader = st.selectbox("Подраздел", ["Оборудование"])  # Один вариант для подраздела
 
-# Поиск по таблице. Если ничего не введено, отображается пустая таблица
+# Поиск по таблице
 if search_query.strip():
     filtered_df2 = df2[df2.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)]
+    show_table = True
 else:
     filtered_df2 = pd.DataFrame(columns=df2.columns)  # Пустая таблица
+    show_table = False
 
-# Отображение чекбоксов для выбора товаров
-selected_items = []
-for index, row in filtered_df2.iterrows():
-    # Визуализируем каждую строку с чекбоксом
-    is_selected = st.checkbox(f"{row['Наименование']} - {row.get('Тариф с НДС, руб', 'Цена не указана')}", key=f"item_{index}")
-    if is_selected:
-        selected_items.append(row["Наименование"])
-
-# Перемещение выбранных товаров в шаблон
-if selected_items:
-    template_df.at[categories.index(selected_header), "Выбранные товары"].extend(selected_items)
+# Используем st.data_editor для отображения данных с чекбоксами
+if show_table:
+    filtered_df2["Выбрать"] = False  # Добавляем колонку для чекбоксов
+    edited_df2 = st.data_editor(filtered_df2[default_columns + ["Выбрать"]], num_rows="dynamic", use_container_width=True)
+    
+    # Сохранение выбранных товаров в соответствующем разделе перед переключением
+    for index, row in edited_df2.iterrows():
+        if row["Выбрать"]:
+            selected_items[selected_header].append(row["Наименование"])
+    
+    # Сброс после сохранения
+    filtered_df2["Выбрать"] = False
 
 # Третий блок: таблица-шаблон для выбранных товаров на всю ширину
 st.subheader("Итоговый файл для просчета")
 
-# Добавляем заголовки перед товарами
-output_df = pd.DataFrame({
-    "Заголовки": template_df["Заголовки"],  # Столбец заголовков
-    "Выбранные товары": template_df["Выбранные товары"]
-})
-
-# Удаляем строки, где нет выбранных товаров, чтобы не показывать пустые строки
-output_df = output_df[output_df["Выбранные товары"].apply(len) > 0]
-
-# Разворачиваем список выбранных товаров в каждой строке на несколько строк
-expanded_output_df = output_df.explode("Выбранные товары")
-
 # Отображаем таблицу с заголовками и выбранными товарами
-st.dataframe(expanded_output_df, use_container_width=True, hide_index=True)
+selected_df = pd.DataFrame({
+    "Заголовки": categories,
+    "Выбранные товары": [", ".join(selected_items[header]) for header in categories]
+})
+st.dataframe(selected_df, use_container_width=True, hide_index=True)
 
 # Четвертый блок: Сохранение в Excel
 if st.button("Сохранить в Excel"):
     # Маппинг выбранных данных в итоговую таблицу
     mapped_data = {}
-    for index, row in template_df.iterrows():
-        header = row["Заголовки"]
-        selected_items = row["Выбранные товары"]
-        if selected_items:
-            mapped_data[header] = [{"Наименование": item} for item in selected_items]
+    for category, items in selected_items.items():
+        if items:
+            mapped_data[category] = [{"Наименование": item} for item in items]
 
     # Сохранение в Excel файл
     save_to_excel(mapped_data, 'mapped_data.xlsx')
