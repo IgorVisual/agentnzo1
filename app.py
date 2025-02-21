@@ -169,7 +169,7 @@ selected_df = pd.DataFrame({
 })
 st.dataframe(selected_df, use_container_width=True, hide_index=True)
 
-# Четвертый блок: Сохранение в Excel
+# Четвертый блок: Сохранение и скачивание Excel файла
 if st.button("Сохранить и скачать Excel файл"):
     # Маппинг выбранных данных в итоговую таблицу
     mapped_data = {}
@@ -178,18 +178,19 @@ if st.button("Сохранить и скачать Excel файл"):
             mapped_data[category] = [{"Наименование": item} for item in items]
 
     # Сохранение в Excel файл
-    save_to_excel(mapped_data, 'mapped_data.xlsx')
+    output_filename = 'mapped_data.xlsx'
+    save_to_excel(mapped_data, output_filename)
     
     # Сброс выбранных товаров после сохранения
     st.session_state.selected_items = {category: [] for category in categories}
     st.session_state.current_selected_rows = []
     
     # Создание ссылки для скачивания файла
-    with open("mapped_data.xlsx", "rb") as file:
+    with open(output_filename, "rb") as file:
         st.download_button(
             label="Скачать Excel файл",
             data=file,
-            file_name="mapped_data.xlsx",
+            file_name=output_filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     
