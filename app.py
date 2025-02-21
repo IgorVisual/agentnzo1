@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import streamlit as st
 from openpyxl import Workbook
+from io import BytesIO
 
 # Функция для инициализации таблицы-шаблона с заголовками и подзаголовками
 def initialize_template_table(headers, subheaders):
@@ -13,7 +14,7 @@ def initialize_template_table(headers, subheaders):
     return template_df
 
 # Функция для маппинга данных в итоговую таблицу и сохранения в Excel
-def save_to_excel(mapped_data, output_filename):
+def save_to_excel(mapped_data):
     wb = Workbook()
     ws = wb.active
 
@@ -41,9 +42,11 @@ def save_to_excel(mapped_data, output_filename):
         # Пустая строка между категориями
         row_num += 1
 
-    # Сохранение файла
-    wb.save(output_filename)
-    print(f"Файл успешно сохранен как {output_filename}")
+    # Сохранение файла в память
+    excel_bytes = BytesIO()
+    wb.save(excel_bytes)
+    excel_bytes.seek(0)
+    return excel_bytes
 
 # Загрузка данных для второй таблицы (например, текущий файл Excel)
 file_path = 'Каталог_Чинт.xlsx'  # Укажи путь к файлу Excel
@@ -70,7 +73,7 @@ st.markdown(
         padding-bottom: 0rem;
         padding-left: 1rem;
         padding-right: 1rem;
-        text-align: center;  /* Центрирование текста */
+        text-align: center;
     }
     .css-1p05t01 {
         padding: 0;
@@ -79,7 +82,7 @@ st.markdown(
         width: 100%;
     }
     .stSelectbox label, .stTextInput label {
-        text-align: center;  /* Центрирование текста в полях ввода */
+        text-align: center;
     }
     .stSelectbox div, .stTextInput div {
         margin-left: auto;
@@ -89,7 +92,7 @@ st.markdown(
     .stCheckbox div {
         margin-left: auto;
         margin-right: auto;
-        text-align: center;  /* Центрирование чекбоксов */
+        text-align: center;
     }
     </style>
     """, 
@@ -155,7 +158,12 @@ if show_table:
     for idx, row in filtered_df2.iterrows():
         item_name = row["Наименование"]
         item_price = row.get("Тариф с НДС, руб", "Цена не указана")
-        selected = st.checkbox(f"{item_name} — {item_price} руб", key=f"{item_name}_{selected_header}")
+        
+        # Оформляем с разделением строк для лучшей читаемости
+        st.markdown(f"**{item_name}**")
+        st.markdown(f"*Цена*: {item_price} руб")
+        
+        selected = st.checkbox("Выбрать", key=f"{item_name}_{selected_header}")
         
         # Сохраняем выбор в текущем разделе
         if selected and item_name not in st.session_state.current_selected_rows:
@@ -180,6 +188,16 @@ if st.button("Сохранить в Excel"):
             mapped_data[category] = [{"Наименование": item} for item in items]
     
     # Сохранение в файл
-    output_filename = "Итоговый_файл.xlsx"
-    save_to_excel(mapped_data, output_filename)
-    st.success(f"Файл успешно сохранен как {output_filename}")
+    excel_bytes = save_to_excel(mapped_data)
+    
+    # Кнопка для скачивания файла через браузер
+    st.download_button(
+        label="Скачать файл Excel",
+        data=excel_bytes,
+        file_name="Итоговый_файл.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    
+    # Сброс таблицы с выбранными товарами
+    st.session_state.selected_items = {category: [] for category in categories}
+    st.experimental_rerun()  # Перезапуск приложения, чтобы сбросить таблицу
