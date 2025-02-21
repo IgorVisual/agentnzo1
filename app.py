@@ -120,6 +120,21 @@ with st.container():
     with col2:
         selected_header = st.selectbox("Раздел", categories)  # Используем фиксированные переменные
 
+# Очищаем чекбоксы при переключении раздела
+if 'last_selected_header' in st.session_state and st.session_state.last_selected_header != selected_header:
+    # Перед переключением категории сохраняем выбор
+    if 'current_selected_rows' in st.session_state:
+        st.session_state.selected_items[st.session_state.last_selected_header].extend(
+            st.session_state.current_selected_rows
+        )
+
+    # Очищаем выбранные товары для нового поиска
+    st.session_state.current_selected_rows = []
+    st.session_state.last_selected_header = selected_header
+else:
+    st.session_state.last_selected_header = selected_header
+    st.session_state.current_selected_rows = []
+
 # Поиск по таблице (обновляется в реальном времени при изменении текста)
 if search_query.strip():
     filtered_df2 = df2[df2.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)]
@@ -133,12 +148,12 @@ if show_table:
     filtered_df2["Выбрать"] = False  # Добавляем колонку для чекбоксов
     edited_df2 = st.data_editor(filtered_df2[default_columns + ["Выбрать"]], num_rows="dynamic", use_container_width=True)
     
-    # Сохранение выбранных товаров в соответствующем разделе перед переключением
+    # Сохранение выбранных товаров в текущем разделе
     for index, row in edited_df2.iterrows():
-        if row["Выбрать"]:
-            st.session_state.selected_items[selected_header].append(row["Наименование"])
+        if row["Выбрать"] and row["Наименование"] not in st.session_state.current_selected_rows:
+            st.session_state.current_selected_rows.append(row["Наименование"])
     
-    # Сброс после сохранения
+    # Очищаем чекбоксы после сохранения, чтобы предотвратить дублирование
     filtered_df2["Выбрать"] = False
 
 # Третий блок: таблица-шаблон для выбранных товаров на всю ширину
@@ -158,7 +173,8 @@ if st.button("Сохранить в Excel"):
     for category, items in st.session_state.selected_items.items():
         if items:
             mapped_data[category] = [{"Наименование": item} for item in items]
-
-    # Сохранение в Excel файл
-    save_to_excel(mapped_data, 'mapped_data.xlsx')
-    st.success("Файл сохранен как mapped_data.xlsx!")
+    
+    # Сохранение в файл
+    output_filename = "Итоговый_файл.xlsx"
+    save_to_excel(mapped_data, output_filename)
+    st.success(f"Файл успешно сохранен как {output_filename}")
