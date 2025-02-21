@@ -113,15 +113,13 @@ if 'selected_items' not in st.session_state:
 # Второй блок: таблица с файла из Каталог_Чинт.xlsx с чекбоксами
 st.subheader("Поиск оборудования")
 
-# Добавление поля для поиска и фильтров на одной строке
+# Добавление поля для поиска и фильтра по разделам на одной строке
 with st.container():
-    col1, col2, col3 = st.columns([3, 1, 1])
+    col1, col2 = st.columns([3, 1])
     with col1:
         search_query = st.text_input("Поиск товаров", "")
     with col2:
         selected_header = st.selectbox("Раздел", categories)  # Используем фиксированные переменные
-    with col3:
-        selected_subheader = st.selectbox("Подраздел", ["Оборудование"])  # Один вариант для подраздела
 
 # Поиск по таблице (обновляется в реальном времени при изменении текста)
 if search_query.strip():
