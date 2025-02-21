@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import streamlit as st
-import random
 from openpyxl import Workbook
 
 # Функция для инициализации таблицы-шаблона с заголовками и подзаголовками
