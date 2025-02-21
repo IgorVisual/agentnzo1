@@ -139,7 +139,21 @@ if selected_items:
 
 # Третий блок: таблица-шаблон для выбранных товаров на всю ширину
 st.subheader("Выбранные товары по категориям")
-st.dataframe(template_df.drop(columns=["Заголовки", "Подзаголовки"]), use_container_width=True, hide_index=True)
+
+# Добавляем заголовки перед товарами
+output_df = pd.DataFrame({
+    "Заголовки": template_df["Заголовки"],  # Столбец заголовков
+    "Выбранные товары": template_df["Выбранные товары"]
+})
+
+# Удаляем строки, где нет выбранных товаров, чтобы не показывать пустые строки
+output_df = output_df[output_df["Выбранные товары"].apply(len) > 0]
+
+# Разворачиваем список выбранных товаров в каждой строке на несколько строк
+expanded_output_df = output_df.explode("Выбранные товары")
+
+# Отображаем таблицу с заголовками и выбранными товарами
+st.dataframe(expanded_output_df, use_container_width=True, hide_index=True)
 
 # Четвертый блок: Сохранение в Excel
 if st.button("Сохранить в Excel"):
