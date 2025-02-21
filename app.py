@@ -116,11 +116,13 @@ st.subheader("Поиск оборудования")
 with st.container():
     col1, col2 = st.columns([3, 1])
     with col1:
-        search_query = st.text_input("Поиск товаров", "")
+        if 'search_query' not in st.session_state:
+            st.session_state.search_query = ""
+        search_query = st.text_input("Поиск товаров", st.session_state.search_query)
     with col2:
         selected_header = st.selectbox("Раздел", categories)  # Используем фиксированные переменные
 
-# Очищаем чекбоксы при переключении раздела
+# Очищаем строку поиска и результаты при переключении раздела
 if 'last_selected_header' in st.session_state and st.session_state.last_selected_header != selected_header:
     # Перед переключением категории сохраняем выбор
     if 'current_selected_rows' in st.session_state:
@@ -128,9 +130,11 @@ if 'last_selected_header' in st.session_state and st.session_state.last_selected
             st.session_state.current_selected_rows
         )
 
-    # Очищаем выбранные товары для нового поиска
+    # Очищаем выбранные товары и строку поиска для нового поиска
     st.session_state.current_selected_rows = []
     st.session_state.last_selected_header = selected_header
+    st.session_state.search_query = ""
+    search_query = ""  # Сброс поля поиска
 else:
     st.session_state.last_selected_header = selected_header
     st.session_state.current_selected_rows = []
@@ -143,18 +147,19 @@ else:
     filtered_df2 = pd.DataFrame(columns=df2.columns)  # Пустая таблица
     show_table = False
 
-# Используем st.data_editor для отображения данных с чекбоксами
+# Используем текстовое представление данных с чекбоксами
 if show_table:
-    filtered_df2["Выбрать"] = False  # Добавляем колонку для чекбоксов
-    edited_df2 = st.data_editor(filtered_df2[default_columns + ["Выбрать"]], num_rows="dynamic", use_container_width=True)
+    st.write(f"Результаты поиска для раздела: {selected_header}")
     
-    # Сохранение выбранных товаров в текущем разделе
-    for index, row in edited_df2.iterrows():
-        if row["Выбрать"] and row["Наименование"] not in st.session_state.current_selected_rows:
-            st.session_state.current_selected_rows.append(row["Наименование"])
-    
-    # Очищаем чекбоксы после сохранения, чтобы предотвратить дублирование
-    filtered_df2["Выбрать"] = False
+    # Для каждой строки оборудования отображаем текст с ценой и чекбокс
+    for idx, row in filtered_df2.iterrows():
+        item_name = row["Наименование"]
+        item_price = row.get("Тариф с НДС, руб", "Цена не указана")
+        selected = st.checkbox(f"{item_name} — {item_price} руб", key=f"{item_name}_{selected_header}")
+        
+        # Сохраняем выбор в текущем разделе
+        if selected and item_name not in st.session_state.current_selected_rows:
+            st.session_state.current_selected_rows.append(item_name)
 
 # Третий блок: таблица-шаблон для выбранных товаров на всю ширину
 st.subheader("Итоговый файл для просчета")
