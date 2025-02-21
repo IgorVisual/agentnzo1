@@ -4,15 +4,6 @@ import streamlit as st
 import random
 from openpyxl import Workbook
 
-# Функция для загрузки данных из файлов в папке "clients"
-def load_client_files(folder_path='clients'):
-    all_files = [f for f in os.listdir(folder_path) if f.endswith('.xlsx')]
-    dataframes = []
-    for file in all_files:
-        df = pd.read_excel(os.path.join(folder_path, file))
-        dataframes.append(df)
-    return dataframes
-
 # Функция для инициализации таблицы-шаблона с заголовками и подзаголовками
 def initialize_template_table(headers, subheaders):
     template_df = pd.DataFrame({
@@ -79,7 +70,7 @@ subheaders = headers_df.iloc[0].tolist()  # Получаем подзаголо�
 # Инициализация таблицы-шаблона с заголовками и подзаголовками
 template_df = initialize_template_table(headers, subheaders)
 
-# Установка кастомных стилей для уменьшения отступов и растягивания блоков
+# Установка кастомных стилей для центрирования и уменьшения отступов
 st.markdown(
     """
     <style>
@@ -88,12 +79,26 @@ st.markdown(
         padding-bottom: 0rem;
         padding-left: 1rem;
         padding-right: 1rem;
+        text-align: center;  /* Центрирование текста */
     }
     .css-1p05t01 {
         padding: 0;
     }
     .st-dataframe {
         width: 100%;
+    }
+    .stSelectbox label, .stTextInput label {
+        text-align: center;  /* Центрирование текста в полях ввода */
+    }
+    .stSelectbox div, .stTextInput div {
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center;
+    }
+    .stCheckbox div {
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center;  /* Центрирование чекбоксов */
     }
     </style>
     """, 
@@ -105,7 +110,8 @@ st.title("Табличный интерфейс")
 
 # Первый блок: данные из файлов в папке clients
 st.subheader("Данные клиентов")
-client_data = load_client_files()  # Загрузка данных из файлов клиентов
+# client_data = load_client_files()  # Загрузка данных из файлов клиентов (функция закомментирована)
+client_data = []  # Заглушка для функции
 if client_data:
     selected_client = st.selectbox("Выберите файл клиента", options=[f for f in os.listdir('clients') if f.endswith('.xlsx')])
     client_df = pd.read_excel(os.path.join('clients', selected_client))
