@@ -100,24 +100,6 @@ st.markdown(
 # Интерфейс Streamlit
 st.title("Табличный интерфейс")
 
-# Первый блок: данные из файлов в папке clients
-st.subheader("Данные клиентов")
-client_data = []  # Заглушка для функции
-if client_data:
-    selected_client = st.selectbox("Выберите файл клиента", options=[f for f in os.listdir('clients') if f.endswith('.xlsx')])
-    client_df = pd.read_excel(os.path.join('clients', selected_client))
-
-    # Выбор необходимых столбцов для отображения в клиентских данных
-    client_columns = ["Наименование", "Тариф с НДС, руб", "Выбрать"]
-    if all(col in client_df.columns for col in client_columns):
-        client_df_filtered = client_df[client_columns]
-    else:
-        client_df_filtered = client_df  # Показать все, если нужные столбцы отсутствуют
-
-    st.dataframe(client_df_filtered, use_container_width=True, hide_index=True)  # Таблица на всю ширину контейнера
-else:
-    st.write("Нет данных для отображения")
-
 # Второй блок: таблица с файла из Каталог_Чинт.xlsx с чекбоксами
 st.subheader("Таблица товаров")
 
@@ -130,3 +112,45 @@ template_df = initialize_template_table(categories, ["Оборудование"]
 # Добавление поля для поиска и фильтров на одной строке
 with st.container():
     col1, col2, col3 = st.columns([3, 1, 1])
+    with col1:
+        search_query = st.text_input("Поиск товаров", "")
+    with col2:
+        selected_header = st.selectbox("Раздел", categories)  # Используем фиксированные переменные
+    with col3:
+        selected_subheader = st.selectbox("Подраздел", ["Оборудование"])  # Один вариант для подраздела
+
+# Поиск по таблице. Если ничего не введено, отображается пустая таблица
+if search_query.strip():
+    filtered_df2 = df2[df2.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)]
+else:
+    filtered_df2 = pd.DataFrame(columns=df2.columns)  # Пустая таблица
+
+# Отображение чекбоксов для выбора товаров
+selected_items = []
+for index, row in filtered_df2.iterrows():
+    # Визуализируем каждую строку с чекбоксом
+    is_selected = st.checkbox(f"{row['Наименование']} - {row.get('Тариф с НДС, руб', 'Цена не указана')}", key=f"item_{index}")
+    if is_selected:
+        selected_items.append(row["Наименование"])
+
+# Перемещение выбранных товаров в шаблон
+if selected_items:
+    template_df.at[categories.index(selected_header), "Выбранные товары"].extend(selected_items)
+
+# Третий блок: таблица-шаблон для выбранных товаров на всю ширину
+st.subheader("Выбранные товары по категориям")
+st.dataframe(template_df.drop(columns=["Заголовки", "Подзаголовки"]), use_container_width=True, hide_index=True)
+
+# Четвертый блок: Сохранение в Excel
+if st.button("Сохранить в Excel"):
+    # Маппинг выбранных данных в итоговую таблицу
+    mapped_data = {}
+    for index, row in template_df.iterrows():
+        header = row["Заголовки"]
+        selected_items = row["Выбранные товары"]
+        if selected_items:
+            mapped_data[header] = [{"Наименование": item} for item in selected_items]
+
+    # Сохранение в Excel файл
+    save_to_excel(mapped_data, 'mapped_data.xlsx')
+    st.success("Файл сохранен как mapped_data.xlsx!")
