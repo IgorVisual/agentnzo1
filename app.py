@@ -170,7 +170,7 @@ selected_df = pd.DataFrame({
 st.dataframe(selected_df, use_container_width=True, hide_index=True)
 
 # Четвертый блок: Сохранение в Excel
-if st.button("Сохранить в Excel"):
+if st.button("Сохранить и скачать Excel файл"):
     # Маппинг выбранных данных в итоговую таблицу
     mapped_data = {}
     for category, items in st.session_state.selected_items.items():
@@ -193,4 +193,4 @@ if st.button("Сохранить в Excel"):
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     
-    st.success("Файл сохранен как mapped_data.xlsx и доступен для скачивания!")
+    st.success("Файл сохранен и доступен для скачивания!")
