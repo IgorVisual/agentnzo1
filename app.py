@@ -1,8 +1,8 @@
 import os
 import pandas as pd
 import streamlit as st
+import random
 from openpyxl import Workbook
-from io import BytesIO
 
 # Функция для инициализации таблицы-шаблона с заголовками и подзаголовками
 def initialize_template_table(headers, subheaders):
@@ -14,7 +14,7 @@ def initialize_template_table(headers, subheaders):
     return template_df
 
 # Функция для маппинга данных в итоговую таблицу и сохранения в Excel
-def save_to_excel(mapped_data):
+def save_to_excel(mapped_data, output_filename):
     wb = Workbook()
     ws = wb.active
 
@@ -42,11 +42,9 @@ def save_to_excel(mapped_data):
         # Пустая строка между категориями
         row_num += 1
 
-    # Сохранение файла в память
-    excel_bytes = BytesIO()
-    wb.save(excel_bytes)
-    excel_bytes.seek(0)
-    return excel_bytes
+    # Сохранение файла
+    wb.save(output_filename)
+    print(f"Файл успешно сохранен как {output_filename}")
 
 # Загрузка данных для второй таблицы (например, текущий файл Excel)
 file_path = 'Каталог_Чинт.xlsx'  # Укажи путь к файлу Excel
@@ -73,7 +71,7 @@ st.markdown(
         padding-bottom: 0rem;
         padding-left: 1rem;
         padding-right: 1rem;
-        text-align: center;
+        text-align: center;  /* Центрирование текста */
     }
     .css-1p05t01 {
         padding: 0;
@@ -82,7 +80,7 @@ st.markdown(
         width: 100%;
     }
     .stSelectbox label, .stTextInput label {
-        text-align: center;
+        text-align: center;  /* Центрирование текста в полях ввода */
     }
     .stSelectbox div, .stTextInput div {
         margin-left: auto;
@@ -92,7 +90,13 @@ st.markdown(
     .stCheckbox div {
         margin-left: auto;
         margin-right: auto;
-        text-align: center;
+        text-align: center;  /* Центрирование чекбоксов */
+    }
+    .checkbox-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
     }
     </style>
     """, 
@@ -108,41 +112,26 @@ categories = ["Корпус", "Отсек высоковольтного вык�
 # Инициализация таблицы-шаблона с фиксированными категориями и подкатегорией "Оборудование"
 template_df = initialize_template_table(categories, ["Оборудование"] * len(categories))
 
-# Используем session_state для сохранения выбранных товаров между разделами
+# Переменная для сохранения выбранных товаров
 if 'selected_items' not in st.session_state:
     st.session_state.selected_items = {category: [] for category in categories}
+
+# Переменная для сохранения текущего состояния строк с выбором товаров
+if 'current_selected_rows' not in st.session_state:
+    st.session_state.current_selected_rows = []
 
 # Второй блок: таблица с файла из Каталог_Чинт.xlsx с чекбоксами
 st.subheader("Поиск оборудования")
 
-# Добавление поля для поиска и фильтра по разделам на одной строке
+# Добавление поля для поиска и фильтров на одной строке
 with st.container():
     col1, col2 = st.columns([3, 1])
     with col1:
-        if 'search_query' not in st.session_state:
-            st.session_state.search_query = ""
-        search_query = st.text_input("Поиск товаров", st.session_state.search_query)
+        search_query = st.text_input("Поиск товаров", "", key="search_query")
     with col2:
-        selected_header = st.selectbox("Раздел", categories)  # Используем фиксированные переменные
+        selected_header = st.selectbox("Раздел", categories)
 
-# Очищаем строку поиска и результаты при переключении раздела
-if 'last_selected_header' in st.session_state and st.session_state.last_selected_header != selected_header:
-    # Перед переключением категории сохраняем выбор
-    if 'current_selected_rows' in st.session_state:
-        st.session_state.selected_items[st.session_state.last_selected_header].extend(
-            st.session_state.current_selected_rows
-        )
-
-    # Очищаем выбранные товары и строку поиска для нового поиска
-    st.session_state.current_selected_rows = []
-    st.session_state.last_selected_header = selected_header
-    st.session_state.search_query = ""
-    search_query = ""  # Сброс поля поиска
-else:
-    st.session_state.last_selected_header = selected_header
-    st.session_state.current_selected_rows = []
-
-# Поиск по таблице (обновляется в реальном времени при изменении текста)
+# Поиск по таблице
 if search_query.strip():
     filtered_df2 = df2[df2.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)]
     show_table = True
@@ -150,24 +139,25 @@ else:
     filtered_df2 = pd.DataFrame(columns=df2.columns)  # Пустая таблица
     show_table = False
 
-# Используем текстовое представление данных с чекбоксами
+# Используем кастомные блоки для отображения товаров
 if show_table:
-    st.write(f"Результаты поиска для раздела: {selected_header}")
-    
-    # Для каждой строки оборудования отображаем текст с ценой и чекбокс
     for idx, row in filtered_df2.iterrows():
         item_name = row["Наименование"]
         item_price = row.get("Тариф с НДС, руб", "Цена не указана")
         
-        # Оформляем с разделением строк для лучшей читаемости
-        st.markdown(f"**{item_name}**")
-        st.markdown(f"*Цена*: {item_price} руб")
-        
-        selected = st.checkbox("Выбрать", key=f"{item_name}_{selected_header}")
-        
-        # Сохраняем выбор в текущем разделе
-        if selected and item_name not in st.session_state.current_selected_rows:
-            st.session_state.current_selected_rows.append(item_name)
+        # Оформляем блок с товаром и ценой
+        with st.container():
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.markdown(f"**{item_name}**")
+                st.markdown(f"*Цена*: {item_price} руб")
+            with col2:
+                # Добавляем индекс строки (idx) к ключу для уникальности
+                selected = st.checkbox("Выбрать", key=f"{item_name}_{selected_header}_{idx}")
+                # Сохраняем выбор в текущем разделе
+                if selected and item_name not in st.session_state.current_selected_rows:
+                    st.session_state.current_selected_rows.append(item_name)
+                    st.session_state.selected_items[selected_header].append(item_name)
 
 # Третий блок: таблица-шаблон для выбранных товаров на всю ширину
 st.subheader("Итоговый файл для просчета")
@@ -186,18 +176,21 @@ if st.button("Сохранить в Excel"):
     for category, items in st.session_state.selected_items.items():
         if items:
             mapped_data[category] = [{"Наименование": item} for item in items]
+
+    # Сохранение в Excel файл
+    save_to_excel(mapped_data, 'mapped_data.xlsx')
     
-    # Сохранение в файл
-    excel_bytes = save_to_excel(mapped_data)
-    
-    # Кнопка для скачивания файла через браузер
-    st.download_button(
-        label="Скачать файл Excel",
-        data=excel_bytes,
-        file_name="Итоговый_файл.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-    
-    # Сброс таблицы с выбранными товарами
+    # Сброс выбранных товаров после сохранения
     st.session_state.selected_items = {category: [] for category in categories}
-    st.experimental_rerun()  # Перезапуск приложения, чтобы сбросить таблицу
+    st.session_state.current_selected_rows = []
+    
+    # Создание ссылки для скачивания файла
+    with open("mapped_data.xlsx", "rb") as file:
+        st.download_button(
+            label="Скачать Excel файл",
+            data=file,
+            file_name="mapped_data.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    
+    st.success("Файл сохранен как mapped_data.xlsx и доступен для скачивания!")
