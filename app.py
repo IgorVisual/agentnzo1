@@ -106,8 +106,9 @@ categories = ["Корпус", "Отсек высоковольтного вык�
 # Инициализация таблицы-шаблона с фиксированными категориями и подкатегорией "Оборудование"
 template_df = initialize_template_table(categories, ["Оборудование"] * len(categories))
 
-# Переменная для сохранения выбранных товаров
-selected_items = {category: [] for category in categories}
+# Используем session_state для сохранения выбранных товаров между разделами
+if 'selected_items' not in st.session_state:
+    st.session_state.selected_items = {category: [] for category in categories}
 
 # Второй блок: таблица с файла из Каталог_Чинт.xlsx с чекбоксами
 st.subheader("Поиск оборудования")
@@ -122,7 +123,7 @@ with st.container():
     with col3:
         selected_subheader = st.selectbox("Подраздел", ["Оборудование"])  # Один вариант для подраздела
 
-# Поиск по таблице
+# Поиск по таблице (обновляется в реальном времени при изменении текста)
 if search_query.strip():
     filtered_df2 = df2[df2.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)]
     show_table = True
@@ -138,7 +139,7 @@ if show_table:
     # Сохранение выбранных товаров в соответствующем разделе перед переключением
     for index, row in edited_df2.iterrows():
         if row["Выбрать"]:
-            selected_items[selected_header].append(row["Наименование"])
+            st.session_state.selected_items[selected_header].append(row["Наименование"])
     
     # Сброс после сохранения
     filtered_df2["Выбрать"] = False
@@ -149,7 +150,7 @@ st.subheader("Итоговый файл для просчета")
 # Отображаем таблицу с заголовками и выбранными товарами
 selected_df = pd.DataFrame({
     "Заголовки": categories,
-    "Выбранные товары": [", ".join(selected_items[header]) for header in categories]
+    "Выбранные товары": [", ".join(st.session_state.selected_items[header]) for header in categories]
 })
 st.dataframe(selected_df, use_container_width=True, hide_index=True)
 
@@ -157,7 +158,7 @@ st.dataframe(selected_df, use_container_width=True, hide_index=True)
 if st.button("Сохранить в Excel"):
     # Маппинг выбранных данных в итоговую таблицу
     mapped_data = {}
-    for category, items in selected_items.items():
+    for category, items in st.session_state.selected_items.items():
         if items:
             mapped_data[category] = [{"Наименование": item} for item in items]
 
